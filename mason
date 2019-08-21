@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-MASON_COMMAND=$1 ; shift
-MASON_NAME=$1 ; shift
-MASON_VERSION=$1 ; shift
+MASON_COMMAND=${1-}
+MASON_NAME=
+MASON_VERSION=
 
 set -eu
 set -o pipefail
@@ -35,10 +35,41 @@ if [ -z "${MASON_DIR:+isset}" ]; then
 fi
 
 if [ "${MASON_COMMAND}" = "env" ]; then
+    shift
+    if [ $# = 0 ]; then
+        printf >&2 '%s\n' \
+            "Usage: $0 env [OPTION] NAME ..." '' \
+            "Print values of listed variables on standard output." \
+            "Variable NAMES may be mixed with the following options:" \
+            "   -A  Set format of subsequent variables to: NAME='quoted value'" \
+            "   -Q  Set format of subsequent variables to: 'quoted value'" \
+            "   -0  By default, values are delimited by newlines." \
+            "       This sets the delimiter to NUL character."
+        exit 1
+    fi
+    args=("$@")
+    shift $#
     . ${MASON_DIR}/mason.sh > /dev/null
-    eval echo \$${MASON_NAME}
+    delim=n
+    mode=
+    for name in "${args[@]}"; do
+        case $name in
+            -[0n]) delim=${name#-}; continue ;;
+            -[AQ]) mode=${name#-}; continue ;;
+            -*) echo >&2 "invalid option: $name"; exit 1 ;;
+        esac
+        case $mode in
+            A) printf "%s\\${delim}" "${name}=${!name@Q}" ;;
+            Q) printf "%s\\${delim}" "${!name@Q}" ;;
+            *) printf "%s\\${delim}" "${!name}" ;;
+        esac
+    done
     exit
 fi
+
+MASON_NAME=${2-}
+MASON_VERSION=${3-}
+shift 3
 
 if [ -z "${MASON_NAME}" ]; then
     usage
