@@ -263,7 +263,7 @@ MASON_PREFIX=${MASON_ROOT}/${MASON_PLATFORM_ID}/${MASON_NAME}/${MASON_VERSION}
 MASON_BINARIES=${MASON_PLATFORM_ID}/${MASON_NAME}/${MASON_VERSION}.tar.gz
 MASON_BINARIES_PATH=${MASON_ROOT}/.binaries/${MASON_BINARIES}
 
-
+unset MASON_SYSTEM_VERSION
 
 
 function mason_check_existing {
@@ -276,7 +276,7 @@ function mason_check_existing {
     elif [ "${MASON_SYSTEM_PACKAGE:-false}" = true ]; then
         if [ -f "${MASON_PREFIX}/version" ] ; then
             local version # no assignment, local ignores exit status from $(...)
-            version=$(set -eu; mason_system_version)
+            version=$(set -eu; mason_version)
             mason_success "Using system-provided ${MASON_NAME} ${version}"
             exit 0
         fi
@@ -649,7 +649,11 @@ function mason_prefix {
 
 function mason_version {
     if [ "${MASON_SYSTEM_PACKAGE:-false}" = true ]; then
-        mason_system_version
+        if [ -z "${MASON_SYSTEM_VERSION+isset}" ]; then
+            MASON_SYSTEM_VERSION=$(set -eu; mason_system_version)
+            : ${MASON_SYSTEM_VERSION:=noversion}
+        fi
+        echo "${MASON_SYSTEM_VERSION}"
     else
         echo "${MASON_VERSION}"
     fi
@@ -728,7 +732,7 @@ function mason_run {
     if [ "$1" == "install" ]; then
         if [ "${MASON_SYSTEM_PACKAGE:-false}" = true ]; then
             local version # no assignment, local ignores exit status from $(...)
-            version=$(set -eu; mason_system_version)
+            version=$(set -eu; mason_version)
             mason_check_existing
             mason_clear_existing
             mason_build
